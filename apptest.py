@@ -216,6 +216,8 @@ def main():
     options = parser.parse_args()
     if options.run:
         return app.run(host=SERVER_HOSTNAME, port=SERVER_PORT, debug=False)
+    else:
+        unittest.main()
 
 if __name__ == '__main__':
     main()
