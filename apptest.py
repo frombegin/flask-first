@@ -51,83 +51,104 @@ app.config['DEBUG'] = False
 app.config['TESTING'] = True
 jsonrpc = JSONRPC(app, '/api', enable_web_browsable_api=True)
 
+
 def check_auth(username, password):
     return True
+
 
 def jsonrcp_headers(fn):
     def wrapped(*args, **kwargs):
         response = make_response(fn(*args, **kwargs))
         response.headers['X-JSONRPC-Tag'] = 'JSONRPC 2.0'
         return response
+
     return wrapped
+
 
 @jsonrpc.method('jsonrpc.echo')
 def echo(name='Flask JSON-RPC'):
     return 'Hello {0}'.format(name)
 
+
 @jsonrpc.method('jsonrpc.echoMyStr')
 def echoMyStr(string):
     return string
+
 
 @jsonrpc.method('jsonrpc.echoAuth', authenticated=check_auth)
 def echoAuth(string):
     return string
 
+
 @jsonrpc.method('jsonrpc.echoAuthChecked(string=str) -> str', authenticated=check_auth, validate=True)
 def echoAuthChecked(string):
     return string
+
 
 @jsonrpc.method('jsonrpc.notify')
 def notify(string):
     pass
 
+
 @jsonrpc.method('jsonrpc.fails')
 def fails(string):
     raise IndexError
+
 
 @jsonrpc.method('jsonrpc.strangeEcho')
 def strangeEcho(string, omg, wtf, nowai, yeswai='Default'):
     return [string, omg, wtf, nowai, yeswai]
 
+
 @jsonrpc.method('jsonrpc.safeEcho', safe=True)
 def safeEcho(string):
     return string
+
 
 @jsonrpc.method('jsonrpc.strangeSafeEcho', safe=True)
 def strangeSafeEcho(*args, **kwargs):
     return strangeEcho(*args, **kwargs)
 
+
 @jsonrpc.method('jsonrpc.checkedEcho(string=str, string2=str) -> str', safe=True, validate=True)
 def protectedEcho(string, string2):
     return string + string2
+
 
 @jsonrpc.method('jsonrpc.checkedArgsEcho(string=str, string2=str)', validate=True)
 def protectedArgsEcho(string, string2):
     return string + string2
 
+
 @jsonrpc.method('jsonrpc.checkedReturnEcho() -> String', validate=True)
 def protectedReturnEcho():
     return 'this is a string'
+
 
 @jsonrpc.method('jsonrpc.authCheckedEcho(Any, Array) -> Object', validate=True)
 def authCheckedEcho(obj1, arr1):
     return {'obj1': obj1, 'arr1': arr1}
 
+
 @jsonrpc.method('jsonrpc.varArgs(String, String, str3=String) -> Array', validate=True)
 def checkedVarArgsEcho(*args, **kw):
     return list(args) + list(kw.values())
+
 
 @jsonrpc.method('jsonrpc.sum(Number, Number) -> Number', validate=True)
 def sum_(a, b):
     return a + b
 
+
 @jsonrpc.method('jsonrpc.subtract(Number, Number) -> Number', validate=True)
 def subtract(a, b):
     return a - b
 
+
 @jsonrpc.method('jsonrpc.divide(Number, Number) -> Number', validate=True)
 def divide(a, b):
     return a / float(b)
+
 
 @jsonrpc.method('jsonrpc.decorators(String) -> String')
 @jsonrcp_headers
@@ -136,7 +157,6 @@ def decorators(string):
 
 
 class FlaskTestServer(object):
-
     def __init__(self):
         self.process = None
 
@@ -152,7 +172,7 @@ class FlaskTestServer(object):
                 self.kill()
             except OSError:
                 pass
-        exe =  os.path.join(os.path.dirname(os.path.abspath(__file__)), 'apptest.py')
+        exe = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'apptest.py')
         self.process = subprocess.Popen([sys.executable, exe, '--run'])
         time.sleep(1)
         return self.process
@@ -172,7 +192,6 @@ class FlaskTestServer(object):
 
 
 class FlaskJSONRPCServerTestCase(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         cls.app = app.test_client()
@@ -185,25 +204,49 @@ class FlaskJSONRPCServerTestCase(unittest.TestCase):
         cls.flask_server.kill()
 
 
-class TrueTest(FlaskJSONRPCServerTestCase):
+class NoneLiveTestCase(unittest.TestCase):
+    def test_client(self):
+        with app.test_client() as c:
+            d = {"jsonrpc": "2.0",
+                 "method": "jsonrpc.echo",
+                 "id": 1,
+                 "params": ['helloworld']
+                 }
+            import json
+            r = c.post('/api', data=json.dumps(d), content_type='application/json')
+            print(r.data)
+
+
+class LiveTestCase(FlaskJSONRPCServerTestCase):
+    def test_client(self):
+        # !!! this test is not post to server !!!
+        with self.app as c:
+            d = {"jsonrpc": "2.0",
+                 "method": "jsonrpc.echo",
+                 "id": 1,
+                 "params": ['helloworld']
+                 }
+            import json
+            r = c.post('/api', data=json.dumps(d), content_type='application/json')
+            print(r.data)
 
     def test_echo(self):
-        server = ServiceProxy(TrueTest.service_url)
+        server = ServiceProxy(self.service_url)
         s = server.jsonrpc.echo()
         print(s)
 
     def test_echo1(self):
-        server = ServiceProxy(TrueTest.service_url)
+        server = ServiceProxy(self.service_url)
         s = server.jsonrpc.echo()
         print(s)
 
     def test_echo2(self):
-        server = ServiceProxy(TrueTest.service_url)
+        server = ServiceProxy(self.service_url)
         s = server.jsonrpc.echo()
         print(s)
 
     def test_echo3(self):
-        server = ServiceProxy(TrueTest.service_url)
+        server = ServiceProxy(self.service_url)
         s = server.jsonrpc.echo('hello')
         print(s)
 
@@ -211,13 +254,14 @@ class TrueTest(FlaskJSONRPCServerTestCase):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-r', '--run',
-        action='store_true', dest='run', default=False,
-        help='Running Flask in subprocess')
+                        action='store_true', dest='run', default=False,
+                        help='Running Flask in subprocess')
     options = parser.parse_args()
     if options.run:
         return app.run(host=SERVER_HOSTNAME, port=SERVER_PORT, debug=False)
     else:
         unittest.main()
+
 
 if __name__ == '__main__':
     main()
