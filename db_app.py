@@ -14,7 +14,16 @@ app.config['SQLALCHEMY_RECORD_QUERIES'] = True
 db = SQLAlchemy(app)
 
 
-class User(db.Model):
+class CRUDMixin(object):
+    def delete(self):
+        db.session.delete(self)
+
+    def save(self):
+        db.session.add(self)
+        db.session.commit()
+
+
+class User(db.Model, CRUDMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True)
     email = db.Column(db.String(120), unique=True)
@@ -26,12 +35,6 @@ class User(db.Model):
     def __repr__(self):
         return '<User %r: %r %r>' % (self.id, self.username, self.email)
 
-    def delete(self):
-        db.session.delete(self)
-
-    def save(self):
-        db.session.add(self)
-        db.session.commit()
 
 db.create_all()
 
